@@ -3,14 +3,14 @@ const fetch = require('node-fetch');
 const strophe = require("node-strophe").Strophe;
 const Strophe = strophe.Strophe;
 // Bot setup
-const server = 'https://conference.alexcassells.com:5281/http-bind';
-const botJID = 'chatbot@alexcassells.com';
+const server = 'https://conference.example.com:5281/http-bind';
+const botJID = 'chatbot@example.com';
 const botNick = 'ChatBot';
 const botPassword = 'chatbotman';
 
 // Multichannel options
 const mucBot = true;
-const roomJID = 'chat@conference.alexcassells.com';
+const roomJID = 'chat@conference.example.com';
 
 //Connections
 
@@ -76,9 +76,7 @@ const parseMessage = (stanza) => {
     let to = stanza.getAttribute('to');
     let from = stanza.getAttribute('from');
     if(from.includes(roomJID)){
-        console.log(from);
         from = roomJID;
-        console.log(from);
     }
     let type = stanza.getAttribute('type');
     let elems = stanza.getElementsByTagName('body');
@@ -117,14 +115,12 @@ const checkForQuestions = (from, to, message) => {
         }
     }
     else if(message.includes("joke")){
-        console.log("contains a joke");
         tellAJoke(from, to);
     }
 }
 
 //Question formatting
 const formatBasicQuestion = (message) =>{
-    console.log("basic formatting question");
     message = message.replace('what is the ', '');
     message = message.replace('what are ', '');
     message = message.replace('what is a ', '');
@@ -197,7 +193,6 @@ const tellAJoke = async (from, to) => {
             return response.json();
         })
   .then((json) => {
-    console.log(json);
     sendCustomMessage(from, to, json.joke);
   }).catch((err) => {
     console.error('Error:', err);
