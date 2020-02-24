@@ -4,10 +4,11 @@ const strophe = require("node-strophe").Strophe;
 
 const Strophe = strophe.Strophe;
 // Bot setup
-let server = 'https://conference.alexcassells.com:5281/http-bind';
-let botJID = 'chatbot@alexcassells.com';
+//Will add a default web-socket option
+let server = 'https://conference.example.com:5281/http-bind';
+let botJID = 'example@example.com';
 let botNick = 'ChatBot';
-let botPassword = 'chatbotman';
+let botPassword = 'ChatBotPassword';
 
 //Connections
 
