@@ -15,8 +15,7 @@
   "dependencies": {
     "node-fetch": "^2.6.0",
     "node-strophe": "^2.0.0",
-    "strophe.js": "^1.3.4",
-    "strophejs-plugin-muc": "^1.1.0"
+    "strophe.js": "^1.3.4"
   },
   "devDependencies": {
     "webpack": "^4.41.6",

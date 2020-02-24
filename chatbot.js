@@ -1,27 +1,37 @@
 // Requirements
 const fetch = require('node-fetch');
 const strophe = require("node-strophe").Strophe;
-
 const Strophe = strophe.Strophe;
 // Bot setup
-//Will add a default web-socket option
-let server = 'https://conference.example.com:5281/http-bind';
-let botJID = 'example@example.com';
-let botNick = 'ChatBot';
-let botPassword = 'ChatBotPassword';
+const server = 'https://conference.alexcassells.com:5281/http-bind';
+const botJID = 'chatbot@alexcassells.com';
+const botNick = 'ChatBot';
+const botPassword = 'chatbotman';
+
+// Multichannel options
+const mucBot = true;
+const roomJID = 'chat@conference.alexcassells.com';
 
 //Connections
 
-let BOSH_SERVICE = server;
-let connection = new Strophe.Connection(BOSH_SERVICE, 'keepalive');
+const BOSH_SERVICE = server;
+const connection = new Strophe.Connection(BOSH_SERVICE, 'keepalive');
 
 //Connect
 console.log("Connecting...");
+// connection.rawInput = connection.rawOutput = console.log;
+
 
 connection.connect(botJID, botPassword, (status) => {
     if (status === Strophe.Status.CONNECTED) {
         console.log('Connected!');
+
+        if(mucBot){
+            console.log("joining muc: " + roomJID);
+            connection.send(strophe.$pres({ from: botJID, to: roomJID+'/'+botNick }).c("x", {'xmlns': 'http://jabber.org/protocol/muc'}).up());
+        }
         connection.send(strophe.$pres());
+
         watchForMessages();
 
     }
@@ -36,8 +46,15 @@ connection.connect(botJID, botPassword, (status) => {
     }
 });
 
+
+//Basic functions
 const sendCustomMessage = (to, from, body) =>{
-    let message = new Strophe.Builder("message", {"to": to, "from": from, "type" : "chat" }).c("body").t(body);
+    console.log("to: " + to + "from: " + from);
+    let type = 'chat';
+    if(to.includes(roomJID)){
+        type = 'groupchat';
+    }roomJID
+    let message = new Strophe.Builder("message", {"to": to, "from": from, "type" : type }).c("body").t(body);
     message.up().c("data", {xmlns: 'my-custom-data-ns'});
     connection.send(message);
 }
@@ -51,27 +68,25 @@ const watchForMessages = () =>{
         null, 
         null, 
         null);
+    return true;
 }
 
+//Message Parsing
 const parseMessage = (stanza) => {
     let to = stanza.getAttribute('to');
     let from = stanza.getAttribute('from');
+    if(from.includes(roomJID)){
+        console.log(from);
+        from = roomJID;
+        console.log(from);
+    }
     let type = stanza.getAttribute('type');
     let elems = stanza.getElementsByTagName('body');
-
-    if (type == "chat" && elems.length > 0) {
+    if ((type == "chat" || type == "groupchat") && elems.length > 0) {
         var body = elems[0];
         if(Strophe.getText(body).length > 0){
             message = Strophe.getText(body).toLowerCase();
-            console.log(message);
-            let question = checkForQuestions(message);
-            if(question){
-                console.log(question);
-                askDuckDuckGo(from, to, question);
-            }
-            else{
-
-            }
+            checkForQuestions(from, to, message);
         };
         watchForMessages();
     }
@@ -81,46 +96,64 @@ const parseMessage = (stanza) => {
 
 }
 
-const checkForQuestions = (message) => {
-    if(
+const checkForQuestions = (from, to, message) => {
+    if( 
         message.includes("what is") || 
         message.includes("what are") || 
         message.includes("who is") || 
         message.includes("who are")){
-        return formatQuestion(message);
+        //removes question formatting like the above examples.
+        let question = formatBasicQuestion(message);
+        //If it contains math symbols:
+        if(question.match(/[\d\(\)\+\-\*\/\.]/)){
+            let formattedQuestion = formatMathQuestion(question);
+            askMathApi(from, to, formattedQuestion);
+        }
+
+        else{
+            //Standard encyclopedic question
+            let formattedQuestion = formatInformationQuestion(question);
+            askDuckDuckGo(from, to, formattedQuestion);
+        }
     }
-    // if(message.includes("how much is") || 
-    // message.includes("how much are")){
-    //     return formatPriceCheck(message);
-    // }
+    else if(message.includes("joke")){
+        console.log("contains a joke");
+        tellAJoke(from, to);
+    }
 }
 
-const formatQuestion = (message) => {
+//Question formatting
+const formatBasicQuestion = (message) =>{
+    console.log("basic formatting question");
     message = message.replace('what is the ', '');
     message = message.replace('what are ', '');
     message = message.replace('what is a ', '');
     message = message.replace('what is ', '');
     message = message.replace('who is ', '');
     message = message.replace('who are ', '');
-    message = message.replace(/[.,\/#!?$%\^&\*;:{}=\-_`~()]/g,"");
-    console.log("formatted message: " + message);
-    message = message.replace(/ /g, '+');
     return message;
 }
 
-// Waiting to find a free price checking API
-// const formatPriceCheck = (message) =>{
-//     message = message.replace('how much is', '');
-//     message = message.replace('how much are', '');
-//     message = message.replace(/[.,\/#!?$%\^&\*;:{}=\-_`~()]/g,"");
-//     return message; 
-// }
+const formatInformationQuestion = (question) => {
+    question = question.replace(/[.,\/#!?$%\^&\*;:{}=\-_`~()]/g,"");
+    question = question.replace(/ /g, '+');
+    return question;
+}
 
-const askDuckDuckGo = async (from, to, question) => {
-    let answer = await fetch('https://api.duckduckgo.com/?q=' + question + '&format=json')
-    let json = await answer.json();
+const formatMathQuestion = (question) =>{
+    question = question.replace(/ /g, '');
+    return question = encodeURIComponent(question);
+}
+
+
+//API handling
+const askDuckDuckGo = async (from, to, formattedQuestion) => {
+    return await fetch('https://api.duckduckgo.com/?q=' + formattedQuestion + '&format=json')
+        .then((response) => {
+            return response.json();
+        })
+  .then((json) => {
     if(json.RelatedTopics.length > 0){
-        console.log(json);
         if(json.Abstract){
             answer = json.Abstract;
         }
@@ -135,4 +168,38 @@ const askDuckDuckGo = async (from, to, question) => {
         let response = "Sorry " + to + ", I don't know what that is."
         sendCustomMessage(from, to, response);
     }
+  }).catch((err) => {
+    console.error('Error:', err);
+  });
+}
+
+const askMathApi = async (from, to, formattedQuestion) => {
+    return await fetch('https://newton.now.sh/simplify/' + formattedQuestion)
+        .then((response) => {
+            return response.json();
+        })
+  .then((json) => {
+    let answer = json.result;
+    if(json){
+        sendCustomMessage(from, to, answer);
+    }
+    else{
+        sendCustomMessage(from, to, "Sorry " + to + ", I don't know the answer, try formatting your question differently.");
+    }
+  }).catch((err) => {
+    console.error('Error:', err);
+  });
+}
+
+const tellAJoke = async (from, to) => {
+    return await fetch('https://sv443.net/jokeapi/v2/joke/Programming?blacklistFlags=nsfw,religious,political,racist,sexist&type=single')
+        .then((response) => {
+            return response.json();
+        })
+  .then((json) => {
+    console.log(json);
+    sendCustomMessage(from, to, json.joke);
+  }).catch((err) => {
+    console.error('Error:', err);
+  });
 }
