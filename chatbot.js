@@ -4,9 +4,9 @@ const strophe = require("node-strophe").Strophe;
 const Strophe = strophe.Strophe;
 // Bot setup
 const server = 'https://conference.example.com:5281/http-bind';
-const botJID = 'chatbot@example.com';
-const botNick = 'ChatBot';
-const botPassword = 'chatbotman';
+const botJID = 'botname@example.com';
+const botNick = 'botNick';
+const botPassword = 'botpass';
 
 // Multichannel options
 const mucBot = true;
@@ -95,11 +95,7 @@ const parseMessage = (stanza) => {
 }
 
 const checkForQuestions = (from, to, message) => {
-    if( 
-        message.includes("what is") || 
-        message.includes("what are") || 
-        message.includes("who is") || 
-        message.includes("who are")){
+    if(message.includes(botNick) && checkForQuestionIndicators(message)){
         //removes question formatting like the above examples.
         let question = formatBasicQuestion(message);
         //If it contains math symbols:
@@ -114,20 +110,36 @@ const checkForQuestions = (from, to, message) => {
             askDuckDuckGo(from, to, formattedQuestion);
         }
     }
-    else if(message.includes("joke")){
+    else if(message.includes(botNick) && message.includes("joke")){
         tellAJoke(from, to);
     }
 }
 
-//Question formatting
-const formatBasicQuestion = (message) =>{
-    message = message.replace('what is the ', '');
-    message = message.replace('what are ', '');
-    message = message.replace('what is a ', '');
-    message = message.replace('what is ', '');
-    message = message.replace('who is ', '');
-    message = message.replace('who are ', '');
-    return message;
+const questionIndicators = 
+[
+    'what is the ',
+    'what are ',
+    'what is an ',
+    'what is a ',
+    'who is ',
+    'who are ',
+    'when was ',
+    'wut is',
+    'what be',
+    'whuz the',
+    'what is '
+]
+
+const checkForQuestionIndicators = (message) => !!questionIndicators.find(q => message.includes(q));
+
+const formatBasicQuestion = (message) => {
+    for(i=0; i< questionIndicators.length; i++){
+        if(message.includes(questionIndicators[i])){
+            let formattedQuestion = message.split(questionIndicators[i]).pop();
+            formattedQuestion = formattedQuestion.replace('?', '');
+            return formattedQuestion;
+        }
+    }
 }
 
 const formatInformationQuestion = (question) => {
